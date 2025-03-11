@@ -118,7 +118,7 @@ export function LogDetailModal({ isOpen, onClose, log }: LogDetailModalProps) {
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-muted-foreground">Endpoint:</dt>
-                      <dd className="font-mono text-xs">{log.path}</dd>
+                      <dd className="font-mono text-xs">{log.endpoint}</dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-muted-foreground">Status:</dt>

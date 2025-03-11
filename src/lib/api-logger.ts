@@ -1,3 +1,8 @@
+// api-logger.ts
+"use server";
+
+import { MongoClient } from "mongodb";
+
 // Define the log entry type
 export interface ApiLogEntry {
   id: string;
@@ -11,16 +16,80 @@ export interface ApiLogEntry {
   duration: number;
 }
 
-// Mock database storage
+// In-memory store (used as a fallback + for local usage)
 let apiLogs: ApiLogEntry[] = [];
 
-// Function to log an API request
-export function logApiRequest(logEntry: ApiLogEntry): void {
-  apiLogs.push(logEntry);
-  // In a real app, this would save to a database
-  console.log("API request logged:", logEntry);
+// Reusable MongoDB client / database reference
+let client: MongoClient | null = null;
 
-  // Store in localStorage for persistence
+/**
+ * Connect to MongoDB once and reuse the client.
+ */
+async function connectToMongoDB() {
+  // Use your actual connection string here, typically from an env variable
+  // e.g. process.env.NEXT_PUBLIC_MONGO_URI or process.env.MONGO_URI
+  // This example hardcodes MONGO_URI for brevity
+  const MONGO_URI =
+    process.env.NEXT_PUBLIC_MONGO_URI ||
+    "mongodb+srv://jaymalave73:TMSLP3k7ep2xDUd8@cluster0.j4y1t.mongodb.net/";
+
+  if (!client) {
+    client = new MongoClient(MONGO_URI);
+    await client.connect();
+  }
+  return client.db("greptile-playground"); // adjust your DB name
+}
+
+/**
+ * Save a log entry to MongoDB
+ */
+async function saveLogToDB(logEntry: ApiLogEntry): Promise<void> {
+  try {
+    const db = await connectToMongoDB();
+    await db.collection("apiLogs").insertOne(logEntry);
+    // Optionally console.log or do something after saving
+  } catch (error) {
+    console.error("Failed to save log to MongoDB:", error);
+  }
+}
+
+/**
+ * Fetch all logs from MongoDB
+ */
+async function fetchAllLogsFromDB(): Promise<ApiLogEntry[]> {
+  try {
+    const db = await connectToMongoDB();
+    const logs = await db
+      .collection("apiLogs")
+      .find()
+      .sort({ timestamp: -1 })
+      .toArray();
+    // Convert _id to string if needed, or omit it. Return them as ApiLogEntry
+    return logs.map((log) => ({
+      id: log._id.toString(),
+      timestamp: log.timestamp,
+      endpoint: log.endpoint,
+      method: log.method,
+      path: log.path,
+      request: log.request,
+      response: log.response,
+      status: log.status,
+      duration: log.duration,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch logs from MongoDB:", error);
+    return [];
+  }
+}
+
+/**
+ * Log an API request (locally + MongoDB).
+ */
+export async function logApiRequest(logEntry: ApiLogEntry): Promise<void> {
+  // Push to in-memory array
+  apiLogs.push(logEntry);
+
+  // Also store in localStorage for ephemeral usage
   try {
     const existingLogs = JSON.parse(localStorage.getItem("apiLogs") || "[]");
     existingLogs.push(logEntry);
@@ -28,32 +97,49 @@ export function logApiRequest(logEntry: ApiLogEntry): void {
   } catch (error) {
     console.error("Failed to store log in localStorage:", error);
   }
+
+  // Finally, save to MongoDB
+  await saveLogToDB(logEntry);
 }
 
-// Function to get all API logs
-export function getApiLogs(): ApiLogEntry[] {
-  // Try to get from localStorage first
+/**
+ * Get all logs (from DB or localStorage).
+ * If you want **only** MongoDB logs, skip localStorage usage.
+ */
+export async function getApiLogs(): Promise<ApiLogEntry[]> {
+  try {
+    // Attempt to fetch from Mongo first
+    const dbLogs = await fetchAllLogsFromDB();
+    if (dbLogs && dbLogs.length > 0) {
+      return dbLogs;
+    }
+  } catch (error) {
+    console.error(
+      "Failed to fetch logs from MongoDB, falling back to localStorage:",
+      error
+    );
+  }
+
+  // Fallback to localStorage
   try {
     const storedLogs = localStorage.getItem("apiLogs");
     if (storedLogs) {
       apiLogs = JSON.parse(storedLogs);
-    } else if (apiLogs.length === 0) {
-      // If no logs in localStorage and no logs in memory, generate mock logs
-      generateMockLogs();
+      return apiLogs;
     }
   } catch (error) {
     console.error("Failed to retrieve logs from localStorage:", error);
-    if (apiLogs.length === 0) {
-      generateMockLogs();
-    }
   }
 
   return apiLogs;
 }
 
-// Function to get a specific log by ID
-export function getApiLogById(id: string): ApiLogEntry | undefined {
-  // Try to get from localStorage first
+/**
+ * Get a specific log by ID.
+ */
+export async function getApiLogById(
+  id: string
+): Promise<ApiLogEntry | undefined> {
   try {
     const storedLogs = localStorage.getItem("apiLogs");
     if (storedLogs) {
@@ -66,156 +152,19 @@ export function getApiLogById(id: string): ApiLogEntry | undefined {
   return apiLogs.find((log) => log.id === id);
 }
 
-// Function to clear all logs
-export function clearApiLogs(): void {
+/**
+ * Clear all logs (local + Mongo).
+ */
+export async function clearApiLogs(): Promise<void> {
+  // Clear local in-memory + localStorage
   apiLogs = [];
   localStorage.removeItem("apiLogs");
-}
 
-// Function to generate mock logs for testing
-export function generateMockLogs(): void {
-  const mockLogs: ApiLogEntry[] = [];
-
-  // Generate timestamps for the last 7 days
-  const now = new Date();
-  const timestamps = Array.from({ length: 20 }, (_, i) => {
-    const date = new Date(now);
-    date.setDate(date.getDate() - Math.floor(Math.random() * 7));
-    date.setHours(date.getHours() - Math.floor(Math.random() * 24));
-    date.setMinutes(date.getMinutes() - Math.floor(Math.random() * 60));
-    return date.toISOString();
-  }).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-
-  // Mock endpoints
-  const endpoints = [
-    {
-      id: "index-repository",
-      method: "POST",
-      path: "/v2/repositories",
-      title: "Index Repository",
-    },
-    {
-      id: "get-repository-info",
-      method: "GET",
-      path: "/v2/repositories/123",
-      title: "Get Repository Info",
-    },
-    {
-      id: "query-repo",
-      method: "POST",
-      path: "/v2/query",
-      title: "Query Repo",
-    },
-  ];
-
-  // Generate mock logs
-  timestamps.forEach((timestamp, index) => {
-    const endpoint = endpoints[Math.floor(Math.random() * endpoints.length)];
-    const status =
-      Math.random() > 0.8 ? (Math.random() > 0.5 ? 400 : 500) : 200;
-    const duration = Math.floor(Math.random() * 900) + 100; // 100-1000ms
-
-    let requestBody = {};
-    let responseBody = {};
-
-    if (endpoint.id === "index-repository") {
-      requestBody = {
-        remote: "github",
-        repository: "user/repo",
-        branch: "main",
-        reload: true,
-        notify: true,
-      };
-      responseBody = {
-        message: "Repository indexing started",
-        statusEndpoint: "https://api.greptile.com/v2/repositories/123/status",
-      };
-    } else if (endpoint.id === "get-repository-info") {
-      requestBody = {};
-      responseBody = {
-        repository: "user/repo",
-        remote: "github",
-        branch: "main",
-        private: true,
-        status: "completed",
-        filesProcessed: 123,
-        numFiles: 123,
-        sha: "abc123def456",
-      };
-    } else if (endpoint.id === "query-repo") {
-      requestBody = {
-        messages: [
-          {
-            id: "msg1",
-            content: "How does authentication work?",
-            role: "user",
-          },
-        ],
-        repositories: [
-          {
-            remote: "github",
-            branch: "main",
-            repository: "user/repo",
-          },
-        ],
-        sessionId: "session123",
-        stream: true,
-        genius: true,
-      };
-      responseBody = {
-        message: "This is the response to your query",
-        sources: [
-          {
-            repository: "user/repo",
-            remote: "github",
-            branch: "main",
-            filepath: "src/main.js",
-            linestart: 10,
-            lineend: 20,
-            summary: "Function that handles authentication",
-          },
-        ],
-      };
-    }
-
-    // Add error message for failed requests
-    if (status >= 400) {
-      responseBody = {
-        error:
-          status === 400
-            ? "Bad request: Invalid parameters"
-            : "Server error: Failed to process request",
-        code: status,
-      };
-    }
-
-    mockLogs.push({
-      id: `mock-${index}`,
-      timestamp,
-      endpoint: endpoint.id,
-      method: endpoint.method,
-      path: endpoint.path,
-      request: {
-        headers: {
-          Authorization: "Bearer mock-token",
-          "Content-Type": "application/json",
-          ...(endpoint.id !== "get-repository-info"
-            ? { "X-GitHub-Token": "mock-github-token" }
-            : {}),
-        },
-        body: requestBody,
-      },
-      response: responseBody,
-      status,
-      duration,
-    });
-  });
-
-  // Save mock logs
-  apiLogs = mockLogs;
+  // Optional: clear in Mongo
   try {
-    localStorage.setItem("apiLogs", JSON.stringify(mockLogs));
+    const db = await connectToMongoDB();
+    await db.collection("apiLogs").deleteMany({});
   } catch (error) {
-    console.error("Failed to store mock logs in localStorage:", error);
+    console.error("Failed to clear logs from MongoDB:", error);
   }
 }

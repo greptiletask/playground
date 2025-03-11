@@ -33,8 +33,8 @@ export default function LogsPage() {
     loadLogs();
   }, []);
 
-  const loadLogs = () => {
-    const apiLogs = getApiLogs();
+  const loadLogs = async () => {
+    const apiLogs = await getApiLogs();
     setLogs(
       apiLogs.sort(
         (a, b) =>
@@ -173,7 +173,7 @@ export default function LogsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="font-mono text-sm">
-                    {log.path}
+                    {log.endpoint}
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(log.status)}>

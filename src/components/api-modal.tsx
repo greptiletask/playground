@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CodeBlock } from "@/components/code-block";
+import { logApiRequest } from "@/lib/api-logger";
 
 interface APIEndpoint {
   id: string;
@@ -134,13 +135,124 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
   // ------------------------------------------------------
   // 4) Handle "Send" (actual fetch call)
   // ------------------------------------------------------
+  //   const handleSend = async () => {
+  //     setIsLoading(true);
+  //     setError(null);
+  //     setResponse(null);
+  //     setHttpCode(null);
+
+  //     // Construct request parameters
+  //     let url = "";
+  //     let options: RequestInit = {
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //     };
+
+  //     // Common headers for all endpoints that might need them
+  //     if (authorization) {
+  //       (options.headers as Record<string, string>)["Authorization"] =
+  //         authorization;
+  //     }
+  //     if (githubToken) {
+  //       (options.headers as Record<string, string>)["X-GitHub-Token"] =
+  //         githubToken;
+  //     }
+
+  //     try {
+  //       switch (endpoint.id) {
+  //         case "index-repository": {
+  //           url = "https://api.greptile.com/v2/repositories";
+  //           options.method = "POST";
+  //           options.body = JSON.stringify({
+  //             remote,
+  //             repository,
+  //             branch,
+  //             reload: reload === "true",
+  //             notify: notify === "true",
+  //           });
+  //           break;
+  //         }
+
+  //         case "get-repository-info": {
+  //           url = `https://api.greptile.com/v2/repositories/${repositoryId}`;
+  //           options.method = "GET";
+  //           // GET requests shouldn’t have a body
+  //           delete options.body;
+  //           break;
+  //         }
+
+  //         case "query-repo": {
+  //           url = "https://api.greptile.com/v2/query";
+  //           options.method = "POST";
+  //           options.body = JSON.stringify({
+  //             messages: [
+  //               {
+  //                 id: "msg1",
+  //                 content: messageContent,
+  //                 role: "user",
+  //               },
+  //             ],
+  //             repositories: [
+  //               {
+  //                 remote: queryRemote,
+  //                 branch: queryBranch,
+  //                 repository: queryRepository,
+  //               },
+  //             ],
+  //             sessionId: "session123",
+  //             stream: stream === "true",
+  //             genius: genius === "true",
+  //           });
+  //           break;
+  //         }
+
+  //         default:
+  //           throw new Error("Unknown endpoint ID");
+  //       }
+
+  //       // ------------------------------------------------------
+  //       // 5) Do the fetch
+  //       // ------------------------------------------------------
+  //       const res = await fetch(url, options);
+
+  //       setHttpCode(res.status);
+
+  //       // In case of non-JSON or error codes:
+  //       const text = await res.text();
+
+  //       if (!res.ok) {
+  //         // Not 2xx: handle as an error
+  //         setError(
+  //           `Request failed with status ${res.status}.\n\nResponse:\n${text}`
+  //         );
+  //       } else {
+  //         // Attempt to parse JSON
+  //         const [data, parseError] = safeJsonParse(text);
+  //         if (parseError) {
+  //           // If JSON parse fails, display the raw text
+  //           setResponse(text);
+  //         } else {
+  //           // Format JSON nicely
+  //           setResponse(JSON.stringify(data, null, 2));
+  //         }
+  //       }
+  //     } catch (err: any) {
+  //       setError(err.message || String(err));
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   };
+
+  // 4) Handle "Send" (actual fetch call)
   const handleSend = async () => {
+    const startTime = Date.now(); // Track start time for duration
+
     setIsLoading(true);
     setError(null);
     setResponse(null);
     setHttpCode(null);
 
-    // Construct request parameters
     let url = "";
     let options: RequestInit = {
       headers: {
@@ -148,96 +260,55 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
       },
     };
 
-    // Common headers for all endpoints that might need them
-    if (authorization) {
-      (options.headers as Record<string, string>)["Authorization"] =
-        authorization;
-    }
-    if (githubToken) {
-      (options.headers as Record<string, string>)["X-GitHub-Token"] =
-        githubToken;
-    }
+    // ...the existing code to build `url` and `options`
 
     try {
-      switch (endpoint.id) {
-        case "index-repository": {
-          url = "https://api.greptile.com/v2/repositories";
-          options.method = "POST";
-          options.body = JSON.stringify({
-            remote,
-            repository,
-            branch,
-            reload: reload === "true",
-            notify: notify === "true",
-          });
-          break;
-        }
-
-        case "get-repository-info": {
-          url = `https://api.greptile.com/v2/repositories/${repositoryId}`;
-          options.method = "GET";
-          // GET requests shouldn’t have a body
-          delete options.body;
-          break;
-        }
-
-        case "query-repo": {
-          url = "https://api.greptile.com/v2/query";
-          options.method = "POST";
-          options.body = JSON.stringify({
-            messages: [
-              {
-                id: "msg1",
-                content: messageContent,
-                role: "user",
-              },
-            ],
-            repositories: [
-              {
-                remote: queryRemote,
-                branch: queryBranch,
-                repository: queryRepository,
-              },
-            ],
-            sessionId: "session123",
-            stream: stream === "true",
-            genius: genius === "true",
-          });
-          break;
-        }
-
-        default:
-          throw new Error("Unknown endpoint ID");
-      }
-
-      // ------------------------------------------------------
-      // 5) Do the fetch
-      // ------------------------------------------------------
       const res = await fetch(url, options);
-
       setHttpCode(res.status);
 
-      // In case of non-JSON or error codes:
+      const endTime = Date.now();
+      const duration = endTime - startTime; // in ms
+
+      // read response
       const text = await res.text();
 
+      // handle error or parse JSON as you do
       if (!res.ok) {
-        // Not 2xx: handle as an error
         setError(
           `Request failed with status ${res.status}.\n\nResponse:\n${text}`
         );
       } else {
-        // Attempt to parse JSON
         const [data, parseError] = safeJsonParse(text);
         if (parseError) {
-          // If JSON parse fails, display the raw text
           setResponse(text);
         } else {
-          // Format JSON nicely
           setResponse(JSON.stringify(data, null, 2));
         }
       }
+
+      const logEntry = {
+        id: "log-" + Date.now(),
+        timestamp: new Date().toISOString(),
+        endpoint: endpoint.path,
+        method: endpoint.method,
+        path: url.replace("https://api.greptile.com", ""), // or just use endpoint.path
+        request: {
+          headers: options.headers,
+          body:
+            options.method === "GET"
+              ? {}
+              : JSON.parse((options.body as string) || "{}"),
+        },
+        response: !res.ok ? { error: text } : safeJsonParse(text)[0] ?? text,
+        status: res.status,
+        duration,
+      };
+
+      // now log it
+      await logApiRequest(logEntry);
     } catch (err: any) {
       setError(err.message || String(err));
+      console.error("Fetch error:", err);
     } finally {
       setIsLoading(false);
     }
