@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { APIEndpoint } from "@/components/api-playground";
 import {
   Sidebar,
   SidebarContent,
@@ -14,6 +13,14 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent,
 } from "@/components/ui/sidebar";
+
+interface APIEndpoint {
+  id: string;
+  method: string;
+  path: string;
+  title: string;
+  description: string;
+}
 
 interface APIReferenceProps {
   endpoints: APIEndpoint[];

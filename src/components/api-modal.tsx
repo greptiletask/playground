@@ -19,8 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { APIEndpoint } from "@/components/api-playground";
 import { CodeBlock } from "@/components/code-block";
+
+interface APIEndpoint {
+  id: string;
+  method: string;
+  path: string;
+  title: string;
+  description: string;
+}
 
 /**
  * Utility to safely parse JSON.
