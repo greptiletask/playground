@@ -245,6 +245,8 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
   //   };
 
   // 4) Handle "Send" (actual fetch call)
+
+  const [selectedTab, setSelectedTab] = useState("request");
   const handleSend = async () => {
     const startTime = Date.now(); // Track start time for duration
 
@@ -260,11 +262,69 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
       },
     };
 
-    // ...the existing code to build `url` and `options`
+    if (authorization) {
+      (options.headers as Record<string, string>)["Authorization"] =
+        authorization;
+    }
+    if (githubToken) {
+      (options.headers as Record<string, string>)["X-GitHub-Token"] =
+        githubToken;
+    }
+
+    switch (endpoint.id) {
+      case "index-repository": {
+        url = "https://api.greptile.com/v2/repositories";
+        options.method = "POST";
+        options.body = JSON.stringify({
+          remote,
+          repository,
+          branch,
+          reload: reload === "true",
+          notify: notify === "true",
+        });
+        break;
+      }
+
+      case "get-repository-info": {
+        url = `https://api.greptile.com/v2/repositories/${repositoryId}`;
+        options.method = "GET";
+        // GET requests shouldn’t have a body
+        delete options.body;
+        break;
+      }
+
+      case "query-repo": {
+        url = "https://api.greptile.com/v2/query";
+        options.method = "POST";
+        options.body = JSON.stringify({
+          messages: [
+            {
+              id: "msg1",
+              content: messageContent,
+              role: "user",
+            },
+          ],
+          repositories: [
+            {
+              remote: queryRemote,
+              branch: queryBranch,
+              repository: queryRepository,
+            },
+          ],
+          sessionId: "session123",
+          stream: stream === "true",
+          genius: genius === "true",
+        });
+        break;
+      }
+      default:
+        throw new Error("Unknown endpoint ID");
+    }
 
     try {
       const res = await fetch(url, options);
       setHttpCode(res.status);
+      console.log("res from send", res);
 
       const endTime = Date.now();
       const duration = endTime - startTime; // in ms
@@ -279,6 +339,7 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
         );
       } else {
         const [data, parseError] = safeJsonParse(text);
+        console.log("data from safeparse", data);
         if (parseError) {
           setResponse(text);
         } else {
@@ -310,6 +371,7 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
       setError(err.message || String(err));
       console.error("Fetch error:", err);
     } finally {
+      setSelectedTab("response");
       setIsLoading(false);
     }
   };
@@ -599,7 +661,12 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
 
             {/* Right panel: Request/Response tabs */}
             <div className="flex-1 overflow-auto p-0">
-              <Tabs defaultValue="request" className="h-full flex flex-col">
+              <Tabs
+                defaultValue={selectedTab}
+                className="h-full flex flex-col"
+                onValueChange={(val) => setSelectedTab(val)}
+                value={selectedTab}
+              >
                 <div className="border-b px-6 py-2">
                   <TabsList className="bg-transparent">
                     <TabsTrigger

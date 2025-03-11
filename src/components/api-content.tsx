@@ -582,7 +582,8 @@ export function APIContent({ endpoint, onTryIt }: APIContentCardProps) {
 
       <Button
         onClick={() => onTryIt(endpoint)}
-        className="flex items-center gap-2 self-start"
+        variant="default"
+        className="flex items-center gap-2 self-start px-3"
       >
         Try it <ChevronDown className="h-4 w-4" />
       </Button>
