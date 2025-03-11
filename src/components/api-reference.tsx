@@ -37,7 +37,7 @@ export function APIReference({
     <SidebarProvider>
       <Sidebar className="border-r">
         <SidebarHeader className="border-b">
-          <h2 className="text-xl font-semibold px-4 py-4">API Reference</h2>
+          <h2 className="text-xl font-semibold px-4 py-4">Greptile API V2</h2>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>

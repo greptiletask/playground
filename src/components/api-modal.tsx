@@ -22,6 +22,18 @@ import {
 import type { APIEndpoint } from "@/components/api-playground";
 import { CodeBlock } from "@/components/code-block";
 
+/**
+ * Utility to safely parse JSON.
+ * Returns [data, error] tuple.
+ */
+function safeJsonParse(input: string): [any, string | null] {
+  try {
+    return [JSON.parse(input), null];
+  } catch (err: any) {
+    return [null, err.message];
+  }
+}
+
 interface APIModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,116 +41,198 @@ interface APIModalProps {
 }
 
 export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
+  // ------------------------------------------------------
+  // 1) State for user inputs
+  // ------------------------------------------------------
+  const [authorization, setAuthorization] = useState("");
+  const [githubToken, setGithubToken] = useState("");
+  const [repositoryId, setRepositoryId] = useState("123"); // for GET repo info
+  // For "index-repository"
+  const [remote, setRemote] = useState("github");
+  const [repository, setRepository] = useState("owner/repo");
+  const [branch, setBranch] = useState("main");
+  const [reload, setReload] = useState("true");
+  const [notify, setNotify] = useState("true");
+
+  // For "query-repo"
+  const [messageContent, setMessageContent] = useState(
+    "How does authentication work?"
+  );
+  const [queryRemote, setQueryRemote] = useState("github");
+  const [queryRepository, setQueryRepository] = useState("owner/repo");
+  const [queryBranch, setQueryBranch] = useState("main");
+  const [stream, setStream] = useState("true");
+  const [genius, setGenius] = useState("true");
+
+  // ------------------------------------------------------
+  // 2) State for response / loading / error
+  // ------------------------------------------------------
   const [response, setResponse] = useState<string | null>(null);
+  const [httpCode, setHttpCode] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = () => {
-    setIsLoading(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-
-      if (endpoint.id === "index-repository") {
-        setResponse(
-          JSON.stringify(
-            {
-              message: "Repository indexing started",
-              statusEndpoint:
-                "https://api.greptile.com/v2/repositories/123/status",
-            },
-            null,
-            2
-          )
-        );
-      } else if (endpoint.id === "get-repository-info") {
-        setResponse(
-          JSON.stringify(
-            {
-              repository: "user/repo",
-              remote: "github",
-              branch: "main",
-              private: true,
-              status: "completed",
-              filesProcessed: 123,
-              numFiles: 123,
-              sha: "abc123def456",
-            },
-            null,
-            2
-          )
-        );
-      } else if (endpoint.id === "query-repo") {
-        setResponse(
-          JSON.stringify(
-            {
-              message: "This is the response to your query",
-              sources: [
-                {
-                  repository: "user/repo",
-                  remote: "github",
-                  branch: "main",
-                  filepath: "src/main.js",
-                  linestart: 10,
-                  lineend: 20,
-                  summary: "Function that handles authentication",
-                },
-              ],
-            },
-            null,
-            2
-          )
-        );
-      }
-    }, 1000);
-  };
-
+  // ------------------------------------------------------
+  // 3) Build the cURL code snippet
+  // ------------------------------------------------------
   const getRequestCode = () => {
     switch (endpoint.id) {
       case "index-repository":
         return `curl --request POST \\
   --url https://api.greptile.com/v2/repositories \\
-  --header 'Authorization: Bearer <token>' \\
+  --header 'Authorization: ${authorization || "Bearer <token>"}' \\
   --header 'Content-Type: application/json' \\
-  --header 'X-GitHub-Token: <api-key>' \\
+  --header 'X-GitHub-Token: ${githubToken || "<api-key>"}' \\
   --data '{
-  "remote": "github",
-  "repository": "user/repo",
-  "branch": "main",
-  "reload": true,
-  "notify": true
+    "remote": "${remote}",
+    "repository": "${repository}",
+    "branch": "${branch}",
+    "reload": ${reload},
+    "notify": ${notify}
 }'`;
       case "get-repository-info":
         return `curl --request GET \\
-  --url https://api.greptile.com/v2/repositories/123 \\
-  --header 'Authorization: Bearer <token>'`;
+  --url https://api.greptile.com/v2/repositories/${repositoryId} \\
+  --header 'Authorization: ${authorization || "Bearer <token>"}'`;
       case "query-repo":
         return `curl --request POST \\
   --url https://api.greptile.com/v2/query \\
-  --header 'Authorization: Bearer <token>' \\
+  --header 'Authorization: ${authorization || "Bearer <token>"}' \\
   --header 'Content-Type: application/json' \\
-  --header 'X-GitHub-Token: <api-key>' \\
+  --header 'X-GitHub-Token: ${githubToken || "<api-key>"}' \\
   --data '{
-  "messages": [
-    {
-      "id": "msg1",
-      "content": "How does authentication work?",
-      "role": "user"
-    }
-  ],
-  "repositories": [
-    {
-      "remote": "github",
-      "branch": "main",
-      "repository": "user/repo"
-    }
-  ],
-  "sessionId": "session123",
-  "stream": true,
-  "genius": true
+    "messages": [
+      {
+        "id": "msg1",
+        "content": "${messageContent}",
+        "role": "user"
+      }
+    ],
+    "repositories": [
+      {
+        "remote": "${queryRemote}",
+        "branch": "${queryBranch}",
+        "repository": "${queryRepository}"
+      }
+    ],
+    "sessionId": "session123",
+    "stream": ${stream},
+    "genius": ${genius}
 }'`;
       default:
         return "";
+    }
+  };
+
+  // ------------------------------------------------------
+  // 4) Handle "Send" (actual fetch call)
+  // ------------------------------------------------------
+  const handleSend = async () => {
+    setIsLoading(true);
+    setError(null);
+    setResponse(null);
+    setHttpCode(null);
+
+    // Construct request parameters
+    let url = "";
+    let options: RequestInit = {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    };
+
+    // Common headers for all endpoints that might need them
+    if (authorization) {
+      (options.headers as Record<string, string>)["Authorization"] =
+        authorization;
+    }
+    if (githubToken) {
+      (options.headers as Record<string, string>)["X-GitHub-Token"] =
+        githubToken;
+    }
+
+    try {
+      switch (endpoint.id) {
+        case "index-repository": {
+          url = "https://api.greptile.com/v2/repositories";
+          options.method = "POST";
+          options.body = JSON.stringify({
+            remote,
+            repository,
+            branch,
+            reload: reload === "true",
+            notify: notify === "true",
+          });
+          break;
+        }
+
+        case "get-repository-info": {
+          url = `https://api.greptile.com/v2/repositories/${repositoryId}`;
+          options.method = "GET";
+          // GET requests shouldn’t have a body
+          delete options.body;
+          break;
+        }
+
+        case "query-repo": {
+          url = "https://api.greptile.com/v2/query";
+          options.method = "POST";
+          options.body = JSON.stringify({
+            messages: [
+              {
+                id: "msg1",
+                content: messageContent,
+                role: "user",
+              },
+            ],
+            repositories: [
+              {
+                remote: queryRemote,
+                branch: queryBranch,
+                repository: queryRepository,
+              },
+            ],
+            sessionId: "session123",
+            stream: stream === "true",
+            genius: genius === "true",
+          });
+          break;
+        }
+
+        default:
+          throw new Error("Unknown endpoint ID");
+      }
+
+      // ------------------------------------------------------
+      // 5) Do the fetch
+      // ------------------------------------------------------
+      const res = await fetch(url, options);
+
+      setHttpCode(res.status);
+
+      // In case of non-JSON or error codes:
+      const text = await res.text();
+
+      if (!res.ok) {
+        // Not 2xx: handle as an error
+        setError(
+          `Request failed with status ${res.status}.\n\nResponse:\n${text}`
+        );
+      } else {
+        // Attempt to parse JSON
+        const [data, parseError] = safeJsonParse(text);
+        if (parseError) {
+          // If JSON parse fails, display the raw text
+          setResponse(text);
+        } else {
+          // Format JSON nicely
+          setResponse(JSON.stringify(data, null, 2));
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || String(err));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -164,25 +258,32 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
                 </span>
                 <SheetTitle className="text-lg">{endpoint.path}</SheetTitle>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose}>
+              {/* <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="h-4 w-4" />
-              </Button>
+              </Button> */}
             </div>
           </SheetHeader>
 
           <div className="flex flex-1 overflow-hidden">
+            {/* Left panel: Form inputs */}
             <div className="flex-1 overflow-auto border-r p-6">
               <h3 className="text-lg font-semibold mb-4">{endpoint.title}</h3>
               <p className="text-sm text-muted-foreground mb-6">
                 {endpoint.description}
               </p>
 
+              {/* ---------- index-repository  ---------- */}
               {endpoint.id === "index-repository" && (
                 <>
                   <div className="space-y-4 mb-6">
                     <div>
                       <Label htmlFor="auth-token">Authorization</Label>
-                      <Input id="auth-token" placeholder="Bearer <token>" />
+                      <Input
+                        id="auth-token"
+                        placeholder="Bearer <token>"
+                        value={authorization}
+                        onChange={(e) => setAuthorization(e.target.value)}
+                      />
                       <p className="text-xs text-muted-foreground mt-1">
                         Bearer authentication header
                       </p>
@@ -190,14 +291,22 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
 
                     <div>
                       <Label htmlFor="github-token">X-GitHub-Token</Label>
-                      <Input id="github-token" placeholder="<api-key>" />
+                      <Input
+                        id="github-token"
+                        placeholder="<api-key>"
+                        value={githubToken}
+                        onChange={(e) => setGithubToken(e.target.value)}
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-4 mb-6">
                     <div>
                       <Label htmlFor="remote">Remote</Label>
-                      <Select defaultValue="github">
+                      <Select
+                        value={remote}
+                        onValueChange={(val) => setRemote(val)}
+                      >
                         <SelectTrigger id="remote">
                           <SelectValue placeholder="Select remote" />
                         </SelectTrigger>
@@ -210,17 +319,30 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
 
                     <div>
                       <Label htmlFor="repository">Repository</Label>
-                      <Input id="repository" placeholder="owner/repository" />
+                      <Input
+                        id="repository"
+                        placeholder="owner/repository"
+                        value={repository}
+                        onChange={(e) => setRepository(e.target.value)}
+                      />
                     </div>
 
                     <div>
                       <Label htmlFor="branch">Branch</Label>
-                      <Input id="branch" placeholder="main" />
+                      <Input
+                        id="branch"
+                        placeholder="main"
+                        value={branch}
+                        onChange={(e) => setBranch(e.target.value)}
+                      />
                     </div>
 
                     <div>
                       <Label htmlFor="reload">Reload</Label>
-                      <Select defaultValue="true">
+                      <Select
+                        value={reload}
+                        onValueChange={(val) => setReload(val)}
+                      >
                         <SelectTrigger id="reload">
                           <SelectValue placeholder="Select reload option" />
                         </SelectTrigger>
@@ -233,7 +355,10 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
 
                     <div>
                       <Label htmlFor="notify">Notify</Label>
-                      <Select defaultValue="true">
+                      <Select
+                        value={notify}
+                        onValueChange={(val) => setNotify(val)}
+                      >
                         <SelectTrigger id="notify">
                           <SelectValue placeholder="Select notify option" />
                         </SelectTrigger>
@@ -247,11 +372,17 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
                 </>
               )}
 
+              {/* ---------- get-repository-info  ---------- */}
               {endpoint.id === "get-repository-info" && (
                 <div className="space-y-4 mb-6">
                   <div>
                     <Label htmlFor="auth-token">Authorization</Label>
-                    <Input id="auth-token" placeholder="Bearer <token>" />
+                    <Input
+                      id="auth-token"
+                      placeholder="Bearer <token>"
+                      value={authorization}
+                      onChange={(e) => setAuthorization(e.target.value)}
+                    />
                     <p className="text-xs text-muted-foreground mt-1">
                       Bearer authentication header
                     </p>
@@ -259,17 +390,28 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
 
                   <div>
                     <Label htmlFor="repository-id">Repository ID</Label>
-                    <Input id="repository-id" placeholder="123" />
+                    <Input
+                      id="repository-id"
+                      placeholder="123"
+                      value={repositoryId}
+                      onChange={(e) => setRepositoryId(e.target.value)}
+                    />
                   </div>
                 </div>
               )}
 
+              {/* ---------- query-repo  ---------- */}
               {endpoint.id === "query-repo" && (
                 <>
                   <div className="space-y-4 mb-6">
                     <div>
                       <Label htmlFor="auth-token">Authorization</Label>
-                      <Input id="auth-token" placeholder="Bearer <token>" />
+                      <Input
+                        id="auth-token"
+                        placeholder="Bearer <token>"
+                        value={authorization}
+                        onChange={(e) => setAuthorization(e.target.value)}
+                      />
                       <p className="text-xs text-muted-foreground mt-1">
                         Bearer authentication header
                       </p>
@@ -277,7 +419,12 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
 
                     <div>
                       <Label htmlFor="github-token">X-GitHub-Token</Label>
-                      <Input id="github-token" placeholder="<api-key>" />
+                      <Input
+                        id="github-token"
+                        placeholder="<api-key>"
+                        value={githubToken}
+                        onChange={(e) => setGithubToken(e.target.value)}
+                      />
                     </div>
                   </div>
 
@@ -287,17 +434,27 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
                       <Input
                         id="message-content"
                         placeholder="How does authentication work?"
+                        value={messageContent}
+                        onChange={(e) => setMessageContent(e.target.value)}
                       />
                     </div>
 
                     <div>
                       <Label htmlFor="repository">Repository</Label>
-                      <Input id="repository" placeholder="owner/repository" />
+                      <Input
+                        id="repository"
+                        placeholder="owner/repository"
+                        value={queryRepository}
+                        onChange={(e) => setQueryRepository(e.target.value)}
+                      />
                     </div>
 
                     <div>
                       <Label htmlFor="remote">Remote</Label>
-                      <Select defaultValue="github">
+                      <Select
+                        value={queryRemote}
+                        onValueChange={(val) => setQueryRemote(val)}
+                      >
                         <SelectTrigger id="remote">
                           <SelectValue placeholder="Select remote" />
                         </SelectTrigger>
@@ -310,12 +467,20 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
 
                     <div>
                       <Label htmlFor="branch">Branch</Label>
-                      <Input id="branch" placeholder="main" />
+                      <Input
+                        id="branch"
+                        placeholder="main"
+                        value={queryBranch}
+                        onChange={(e) => setQueryBranch(e.target.value)}
+                      />
                     </div>
 
                     <div>
                       <Label htmlFor="stream">Stream</Label>
-                      <Select defaultValue="true">
+                      <Select
+                        value={stream}
+                        onValueChange={(val) => setStream(val)}
+                      >
                         <SelectTrigger id="stream">
                           <SelectValue placeholder="Select stream option" />
                         </SelectTrigger>
@@ -328,7 +493,10 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
 
                     <div>
                       <Label htmlFor="genius">Genius</Label>
-                      <Select defaultValue="true">
+                      <Select
+                        value={genius}
+                        onValueChange={(val) => setGenius(val)}
+                      >
                         <SelectTrigger id="genius">
                           <SelectValue placeholder="Select genius option" />
                         </SelectTrigger>
@@ -351,6 +519,7 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
               </Button>
             </div>
 
+            {/* Right panel: Request/Response tabs */}
             <div className="flex-1 overflow-auto p-0">
               <Tabs defaultValue="request" className="h-full flex flex-col">
                 <div className="border-b px-6 py-2">
@@ -446,6 +615,32 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
                 </TabsContent>
 
                 <TabsContent value="response" className="flex-1 p-0 m-0">
+                  {/* If there's an HTTP code, show it */}
+                  {httpCode && (
+                    <div
+                      className={`p-2 text-sm flex items-center gap-2 ${
+                        httpCode >= 200 && httpCode < 300
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      <span className="font-medium">{httpCode}</span>
+                      <span>
+                        {httpCode >= 200 && httpCode < 300
+                          ? "Success"
+                          : "Error Occurred"}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* If there's an error, show it */}
+                  {error && (
+                    <div className="p-4 text-sm text-red-700 whitespace-pre-wrap">
+                      {error}
+                    </div>
+                  )}
+
+                  {/* If there's a response, show it */}
                   {response ? (
                     <div className="relative h-full">
                       <div className="absolute top-2 right-2 z-10">
@@ -453,17 +648,13 @@ export function APIModal({ isOpen, onClose, endpoint }: APIModalProps) {
                           <Copy className="h-4 w-4" />
                         </Button>
                       </div>
-                      <div className="p-2 bg-green-100 text-green-800 text-sm flex items-center gap-2">
-                        <span className="font-medium">200</span>
-                        <span>Success</span>
-                      </div>
                       <CodeBlock language="json" code={response} />
                     </div>
-                  ) : (
+                  ) : !error ? (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
                       Send a request to see the response
                     </div>
-                  )}
+                  ) : null}
                 </TabsContent>
               </Tabs>
             </div>

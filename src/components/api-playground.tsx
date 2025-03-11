@@ -79,7 +79,7 @@ export function APIPlayground() {
           />
         </div>
       ) : (
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-8 min-w-5xl">
           <h1 className="text-2xl font-bold">Introduction</h1>
           <p className="mt-4 text-muted-foreground">
             Welcome to the Greptile API playground. Select an endpoint from the
