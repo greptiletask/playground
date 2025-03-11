@@ -99,7 +99,7 @@ export default function LogsPage() {
   };
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 flex flex-col h-[calc(100vh-4rem)]">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Playground Logs</h1>
@@ -135,9 +135,9 @@ export default function LogsPage() {
           </div>
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
+        <div className="border rounded-lg overflow-hidden flex-1 flex flex-col">
+          <Table className="table-fixed">
+            <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
                 <TableHead className="w-[180px]">
                   <div className="flex items-center">
@@ -158,7 +158,7 @@ export default function LogsPage() {
                 <TableHead className="w-[100px] text-right">Duration</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="overflow-y-auto">
+            <TableBody className="overflow-y-auto max-h-[calc(100vh-16rem)]">
               {logs.map((log) => (
                 <TableRow
                   key={log.id}
