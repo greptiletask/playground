@@ -72,14 +72,14 @@ export function LogDetailModal({ isOpen, onClose, log }: LogDetailModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="min-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center gap-2">
             <Badge className={getMethodColor(log.method)}>{log.method}</Badge>
             <DialogTitle className="font-mono text-sm">{log.path}</DialogTitle>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
+            {/* <X className="h-4 w-4" /> */}
           </Button>
         </DialogHeader>
 
@@ -95,7 +95,10 @@ export function LogDetailModal({ isOpen, onClose, log }: LogDetailModalProps) {
             <TabsTrigger value="response">Response</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="flex-1 overflow-auto">
+          <TabsContent
+            value="overview"
+            className="flex-1 overflow-auto max-h-[90vh] max-w-7xl"
+          >
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-4">
                 <div className="p-4 border rounded-lg">
