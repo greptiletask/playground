@@ -12,7 +12,10 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
+import { MonitorCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface APIEndpoint {
   id: string;
@@ -39,6 +42,8 @@ export function APIReference({
     console.log("Selecting endpoint:", id);
     onSelectEndpoint(id);
   };
+
+  const router = useRouter();
 
   return (
     <SidebarProvider>
@@ -97,6 +102,15 @@ export function APIReference({
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+        <SidebarFooter className="flex items-center gap-2 p-3 border-t flex-row w-full">
+          <div
+            className="flex-1 truncate flex flex-row justify-between items-center cursor-pointer w-full"
+            onClick={() => router.push("/logs")}
+          >
+            <div className="text-sm font-medium">Request Logs</div>
+            <MonitorCheck className="w-5 h-5 stroke-[1.5] group-hover:stroke-2 transition-all text-primary" />
+          </div>
+        </SidebarFooter>
       </Sidebar>
     </SidebarProvider>
   );

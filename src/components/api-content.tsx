@@ -12,34 +12,272 @@ interface APIEndpoint {
   title: string;
   description: string;
 }
+
 interface APIContentCardProps {
   endpoint: APIEndpoint;
   onTryIt: (endpoint: APIEndpoint) => void;
 }
 
-export function APIContent({ endpoint, onTryIt }: APIContentCardProps) {
-  // Example: return different request/response examples
-  const getRequestExample = (endpoint: APIEndpoint) => {
-    switch (endpoint.id) {
-      case "index-repository":
-        return `curl --request POST \\
+// Returns an object with code samples for each language, given an endpoint ID.
+function getExamples(endpointId: string) {
+  switch (endpointId) {
+    case "index-repository":
+      return {
+        curl: `curl --request POST \\
   --url https://api.greptile.com/v2/repositories \\
   --header 'Authorization: Bearer <token>' \\
   --header 'Content-Type: application/json' \\
   --header 'X-GitHub-Token: <api-key>' \\
   --data '{
-  "remote": "<string>",
-  "repository": "<string>",
-  "branch": "<string>",
-  "reload": true,
-  "notify": true
-}'`;
-      case "get-repository-info":
-        return `curl --request GET \\
+    "remote": "<string>",
+    "repository": "<string>",
+    "branch": "<string>",
+    "reload": true,
+    "notify": true
+}'`,
+        python: `import requests
+
+url = "https://api.greptile.com/v2/repositories"
+headers = {
+    "Authorization": "Bearer <token>",
+    "Content-Type": "application/json",
+    "X-GitHub-Token": "<api-key>"
+}
+data = {
+    "remote": "<string>",
+    "repository": "<string>",
+    "branch": "<string>",
+    "reload": True,
+    "notify": True
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.status_code, response.text)`,
+        javascript: `fetch("https://api.greptile.com/v2/repositories", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer <token>",
+    "Content-Type": "application/json",
+    "X-GitHub-Token": "<api-key>"
+  },
+  body: JSON.stringify({
+    remote: "<string>",
+    repository: "<string>",
+    branch: "<string>",
+    reload: true,
+    notify: true
+  })
+})
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error(error));`,
+        php: `<?php
+$ch = curl_init();
+
+curl_setopt($ch, CURLOPT_URL, "https://api.greptile.com/v2/repositories");
+curl_setopt($ch, CURLOPT_POST, 1);
+
+$headers = [
+  "Authorization: Bearer <token>",
+  "Content-Type: application/json",
+  "X-GitHub-Token: <api-key>"
+];
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+$data = [
+  "remote" => "<string>",
+  "repository" => "<string>",
+  "branch" => "<string>",
+  "reload" => true,
+  "notify" => true
+];
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+$response = curl_exec($ch);
+curl_close($ch);
+
+echo $response;`,
+        go: `package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+)
+
+func main() {
+    url := "https://api.greptile.com/v2/repositories"
+    payload := map[string]interface{}{
+        "remote": "<string>",
+        "repository": "<string>",
+        "branch": "<string>",
+        "reload": true,
+        "notify": true,
+    }
+    body, _ := json.Marshal(payload)
+
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+    if err != nil {
+        fmt.Println("Error creating request:", err)
+        return
+    }
+
+    req.Header.Set("Authorization", "Bearer <token>")
+    req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("X-GitHub-Token", "<api-key>")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Println("Error making request:", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    respBody, err := io.ReadAll(resp.Body)
+    if err != nil {
+        fmt.Println("Error reading response:", err)
+        return
+    }
+
+    fmt.Println("Status:", resp.Status)
+    fmt.Println("Response:", string(respBody))
+}`,
+        java: `import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
+public class Main {
+    public static void main(String[] args) {
+        try {
+            URL url = new URL("https://api.greptile.com/v2/repositories");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer <token>");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("X-GitHub-Token", "<api-key>");
+            conn.setDoOutput(true);
+
+            String jsonInputString = "{ \\"remote\\": \\"<string>\\", \\"repository\\": \\"<string>\\", \\"branch\\": \\"<string>\\", \\"reload\\": true, \\"notify\\": true }";
+
+            try(OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+            System.out.println("Response code: " + responseCode);
+            // Read response ...
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}`,
+      };
+
+    case "get-repository-info":
+      return {
+        curl: `curl --request GET \\
   --url https://api.greptile.com/v2/repositories/{repositoryId} \\
-  --header 'Authorization: Bearer <token>'`;
-      case "query-repo":
-        return `curl --request POST \\
+  --header 'Authorization: Bearer <token>'`,
+        python: `import requests
+
+url = "https://api.greptile.com/v2/repositories/{repositoryId}"
+headers = {
+    "Authorization": "Bearer <token>"
+}
+
+response = requests.get(url, headers=headers)
+print(response.status_code, response.text)`,
+        javascript: `fetch("https://api.greptile.com/v2/repositories/{repositoryId}", {
+  method: "GET",
+  headers: {
+    "Authorization": "Bearer <token>"
+  }
+})
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error(error));`,
+        php: `<?php
+$ch = curl_init();
+
+curl_setopt($ch, CURLOPT_URL, "https://api.greptile.com/v2/repositories/{repositoryId}");
+curl_setopt($ch, CURLOPT_HTTPGET, 1);
+
+$headers = ["Authorization: Bearer <token>"];
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+$response = curl_exec($ch);
+curl_close($ch);
+
+echo $response;`,
+        go: `package main
+
+import (
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+)
+
+func main() {
+    url := "https://api.greptile.com/v2/repositories/{repositoryId}"
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        fmt.Println("Error creating request:", err)
+        return
+    }
+
+    req.Header.Set("Authorization", "Bearer <token>")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Println("Error making request:", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    respBody, err := io.ReadAll(resp.Body)
+    if err != nil {
+        fmt.Println("Error reading response:", err)
+        return
+    }
+
+    fmt.Println("Status:", resp.Status)
+    fmt.Println("Response:", string(respBody))
+}`,
+        java: `import java.net.HttpURLConnection;
+import java.net.URL;
+
+public class Main {
+    public static void main(String[] args) {
+        try {
+            URL url = new URL("https://api.greptile.com/v2/repositories/{repositoryId}");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer <token>");
+
+            int responseCode = conn.getResponseCode();
+            System.out.println("Response code: " + responseCode);
+            // Read response...
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}`,
+      };
+
+    case "query-repo":
+      return {
+        curl: `curl --request POST \\
   --url https://api.greptile.com/v2/query \\
   --header 'Authorization: Bearer <token>' \\
   --header 'Content-Type: application/json' \\
@@ -62,12 +300,217 @@ export function APIContent({ endpoint, onTryIt }: APIContentCardProps) {
   "sessionId": "<string>",
   "stream": true,
   "genius": true
-}'`;
-      default:
-        return "";
-    }
-  };
+}'`,
+        python: `import requests
 
+url = "https://api.greptile.com/v2/query"
+headers = {
+    "Authorization": "Bearer <token>",
+    "Content-Type": "application/json",
+    "X-GitHub-Token": "<api-key>"
+}
+data = {
+    "messages": [
+        {
+            "id": "<string>",
+            "content": "<string>",
+            "role": "<string>"
+        }
+    ],
+    "repositories": [
+        {
+            "remote": "<string>",
+            "branch": "<string>",
+            "repository": "<string>"
+        }
+    ],
+    "sessionId": "<string>",
+    "stream": True,
+    "genius": True
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.status_code, response.text)`,
+        javascript: `fetch("https://api.greptile.com/v2/query", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer <token>",
+    "Content-Type": "application/json",
+    "X-GitHub-Token": "<api-key>"
+  },
+  body: JSON.stringify({
+    messages: [
+      {
+        id: "<string>",
+        content: "<string>",
+        role: "<string>"
+      }
+    ],
+    repositories: [
+      {
+        remote: "<string>",
+        branch: "<string>",
+        repository: "<string>"
+      }
+    ],
+    sessionId: "<string>",
+    stream: true,
+    genius: true
+  })
+})
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error(error));`,
+        php: `<?php
+$ch = curl_init();
+
+curl_setopt($ch, CURLOPT_URL, "https://api.greptile.com/v2/query");
+curl_setopt($ch, CURLOPT_POST, 1);
+
+$headers = [
+  "Authorization: Bearer <token>",
+  "Content-Type: application/json",
+  "X-GitHub-Token: <api-key>"
+];
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+$data = [
+  "messages" => [
+    [
+      "id" => "<string>",
+      "content" => "<string>",
+      "role" => "<string>"
+    ]
+  ],
+  "repositories" => [
+    [
+      "remote" => "<string>",
+      "branch" => "<string>",
+      "repository" => "<string>"
+    ]
+  ],
+  "sessionId" => "<string>",
+  "stream" => true,
+  "genius" => true
+];
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+$response = curl_exec($ch);
+curl_close($ch);
+
+echo $response;`,
+        go: `package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io"
+    "net/http"
+    "os"
+)
+
+func main() {
+    url := "https://api.greptile.com/v2/query"
+    payload := map[string]interface{}{
+        "messages": []map[string]string{
+            {
+                "id": "<string>",
+                "content": "<string>",
+                "role": "<string>",
+            },
+        },
+        "repositories": []map[string]string{
+            {
+                "remote": "<string>",
+                "branch": "<string>",
+                "repository": "<string>",
+            },
+        },
+        "sessionId": "<string>",
+        "stream": true,
+        "genius": true,
+    }
+
+    body, _ := json.Marshal(payload)
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+    if err != nil {
+        fmt.Println("Error creating request:", err)
+        return
+    }
+
+    req.Header.Set("Authorization", "Bearer <token>")
+    req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("X-GitHub-Token", "<api-key>")
+
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        fmt.Println("Error making request:", err)
+        return
+    }
+    defer resp.Body.Close()
+
+    respBody, err := io.ReadAll(resp.Body)
+    if err != nil {
+        fmt.Println("Error reading response:", err)
+        return
+    }
+
+    fmt.Println("Status:", resp.Status)
+    fmt.Println("Response:", string(respBody))
+}`,
+        java: `import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
+public class Main {
+    public static void main(String[] args) {
+        try {
+            URL url = new URL("https://api.greptile.com/v2/query");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer <token>");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("X-GitHub-Token", "<api-key>");
+            conn.setDoOutput(true);
+
+            String jsonInputString = "{\\"messages\\":[{\\"id\\":\\"<string>\\",\\"content\\":\\"<string>\\",\\"role\\":\\"<string>\\"}],\\"repositories\\":[{\\"remote\\":\\"<string>\\",\\"branch\\":\\"<string>\\",\\"repository\\":\\"<string>\\"}],\\"sessionId\\":\\"<string>\\",\\"stream\\":true,\\"genius\\":true}";
+
+            try(OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+            System.out.println("Response code: " + responseCode);
+            // Read response...
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}`,
+      };
+
+    default:
+      return {
+        curl: "No example available",
+        python: "No example available",
+        javascript: "No example available",
+        php: "No example available",
+        go: "No example available",
+        java: "No example available",
+      };
+  }
+}
+
+export function APIContent({ endpoint, onTryIt }: APIContentCardProps) {
+  // Grab the examples for this endpoint
+  const examples = getExamples(endpoint.id);
+
+  // The same "response" examples (JSON structure) as you had before.
   const getResponseExample = (endpoint: APIEndpoint) => {
     switch (endpoint.id) {
       case "index-repository":
@@ -108,8 +551,9 @@ export function APIContent({ endpoint, onTryIt }: APIContentCardProps) {
 
   return (
     <div className="flex flex-col gap-4 bg-white rounded shadow p-6 relative">
-      {/* A small timeline “dot” or “line” on the left, purely optional */}
+      {/* Optional vertical line for "timeline" UI */}
       <div className="absolute left-0 top-6 -translate-x-1/2 w-1 bg-muted h-full" />
+
       <div className="relative">
         <span className="text-sm text-muted-foreground">API Reference</span>
         <h1 className="text-2xl font-bold">{endpoint.title}</h1>
@@ -143,6 +587,7 @@ export function APIContent({ endpoint, onTryIt }: APIContentCardProps) {
         Try it <ChevronDown className="h-4 w-4" />
       </Button>
 
+      {/* Tabs for each language sample */}
       <Tabs defaultValue="curl" className="mt-4">
         <TabsList className="mb-4">
           <TabsTrigger value="curl">cURL</TabsTrigger>
@@ -150,47 +595,67 @@ export function APIContent({ endpoint, onTryIt }: APIContentCardProps) {
           <TabsTrigger value="javascript">JavaScript</TabsTrigger>
           <TabsTrigger value="php">PHP</TabsTrigger>
           <TabsTrigger value="go">Go</TabsTrigger>
-          <TabsTrigger value="java">Java</TabsTrigger>
+          {/* <TabsTrigger value="java">Java</TabsTrigger> */}
         </TabsList>
+
+        {/* cURL */}
         <TabsContent value="curl" className="relative">
           <div className="absolute top-2 right-2">
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <Copy className="h-4 w-4" />
             </Button>
           </div>
-          {getRequestExample(endpoint) ? (
-            <CodeBlock language="bash" code={getRequestExample(endpoint)} />
-          ) : (
-            <div className="p-4 text-center text-muted-foreground">
-              No example available
-            </div>
-          )}
+          <CodeBlock language="bash" code={examples.curl} />
         </TabsContent>
-        {/* ...the other language tabs, just placeholders... */}
-        <TabsContent value="python">
-          <div className="p-4 text-center text-muted-foreground">
-            Python example coming soon
+
+        {/* Python */}
+        <TabsContent value="python" className="relative">
+          <div className="absolute top-2 right-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Copy className="h-4 w-4" />
+            </Button>
           </div>
+          <CodeBlock language="python" code={examples.python} />
         </TabsContent>
-        <TabsContent value="javascript">
-          <div className="p-4 text-center text-muted-foreground">
-            JavaScript example coming soon
+
+        {/* JavaScript */}
+        <TabsContent value="javascript" className="relative">
+          <div className="absolute top-2 right-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Copy className="h-4 w-4" />
+            </Button>
           </div>
+          <CodeBlock language="javascript" code={examples.javascript} />
         </TabsContent>
-        <TabsContent value="php">
-          <div className="p-4 text-center text-muted-foreground">
-            PHP example coming soon
+
+        {/* PHP */}
+        <TabsContent value="php" className="relative">
+          <div className="absolute top-2 right-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Copy className="h-4 w-4" />
+            </Button>
           </div>
+          <CodeBlock language="php" code={examples.php} />
         </TabsContent>
-        <TabsContent value="go">
-          <div className="p-4 text-center text-muted-foreground">
-            Go example coming soon
+
+        {/* Go */}
+        <TabsContent value="go" className="relative">
+          <div className="absolute top-2 right-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Copy className="h-4 w-4" />
+            </Button>
           </div>
+          <CodeBlock language="go" code={examples.go} />
         </TabsContent>
-        <TabsContent value="java">
-          <div className="p-4 text-center text-muted-foreground">
-            Java example coming soon
+
+        {/* Java */}
+        <TabsContent value="java" className="relative">
+          <div className="absolute top-2 right-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Copy className="h-4 w-4" />
+            </Button>
           </div>
+          <CodeBlock language="java" code={examples.java} />
         </TabsContent>
       </Tabs>
 
