@@ -21,14 +21,8 @@ import {
 } from "@/components/ui/select";
 import { CodeBlock } from "@/components/code-block";
 import { logApiRequest } from "@/lib/api-logger";
+import { APIEndpoint } from "@/types/endpoint";
 
-interface APIEndpoint {
-  id: string;
-  method: string;
-  path: string;
-  title: string;
-  description: string;
-}
 
 /**
  * Utility to safely parse JSON.

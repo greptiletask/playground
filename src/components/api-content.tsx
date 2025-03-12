@@ -4,14 +4,7 @@ import { ChevronDown, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CodeBlock } from "@/components/code-block";
-
-interface APIEndpoint {
-  id: string;
-  method: string;
-  path: string;
-  title: string;
-  description: string;
-}
+import { APIEndpoint } from "@/types/endpoint";
 
 interface APIContentCardProps {
   endpoint: APIEndpoint;

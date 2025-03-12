@@ -16,14 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { MonitorCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-
-interface APIEndpoint {
-  id: string;
-  method: string;
-  path: string;
-  title: string;
-  description: string;
-}
+import { APIEndpoint } from "@/types/endpoint";
 
 interface APIReferenceProps {
   endpoints: APIEndpoint[];

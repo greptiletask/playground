@@ -6,14 +6,9 @@ import { APIReference } from "@/components/api-reference";
 import { APIModal } from "@/components/api-modal";
 import { APIContent } from "@/components/api-content";
 import { Send, Download, Search } from "lucide-react";
+import { APIEndpoint } from "@/types/endpoint";
 
-interface APIEndpoint {
-  id: string;
-  method: string;
-  path: string;
-  title: string;
-  description: string;
-}
+
 
 export function APIPlayground() {
   const endpoints: APIEndpoint[] = [
