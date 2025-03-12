@@ -31,7 +31,7 @@ async function connectToMongoDB() {
   // This example hardcodes MONGO_URI for brevity
   const MONGO_URI =
     process.env.NEXT_PUBLIC_MONGO_URI ||
-    "mongodb+srv://jaymalave73:TMSLP3k7ep2xDUd8@cluster0.j4y1t.mongodb.net/";
+    "";
 
   if (!client) {
     client = new MongoClient(MONGO_URI);
